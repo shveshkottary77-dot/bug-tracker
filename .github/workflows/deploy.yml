@@ -1,4 +1,4 @@
-name: Deploy to AWS EC2 via Docker
+name: Deploy to AWS EC2
 
 on:
   push:
@@ -6,39 +6,11 @@ on:
       - main
 
 jobs:
-  build-and-deploy:
-    name: Build Docker Image & Deploy to EC2
+  deploy:
+    name: Deploy to EC2 via SSH
     runs-on: ubuntu-latest
 
     steps:
-      # ─────────────────────────────────────────────
-      # Step 1: Checkout repository code
-      # ─────────────────────────────────────────────
-      - name: Checkout Code
-        uses: actions/checkout@v3
-
-      # ─────────────────────────────────────────────
-      # Step 2: Log in to Docker Hub
-      # ─────────────────────────────────────────────
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.IXICKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      # ─────────────────────────────────────────────
-      # Step 3: Build and Push Docker image
-      # ─────────────────────────────────────────────
-      - name: Build & Push Docker Image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ secrets.IXICKER_USERNAME }}/bug-tracker:latest
-
-      # ─────────────────────────────────────────────
-      # Step 4: SSH into EC2 and run the container
-      # ─────────────────────────────────────────────
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -46,18 +18,33 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # Pull the latest Docker image from Docker Hub
-            docker pull ${{ secrets.IXICKER_USERNAME }}/bug-tracker:latest
+            echo "🔄 Checking if repository directory exists..."
+            if [ ! -d "/home/ubuntu/ci-cd-project" ]; then
+              echo "📥 Directory not found. Cloning repository..."
+              git clone https://github.com/shveshkottary77-dot/bug-tracker.git /home/ubuntu/ci-cd-project
+            else
+              echo "🔄 Directory exists. Fetching latest changes..."
+              cd /home/ubuntu/ci-cd-project
+              git fetch origin main
+              git reset --hard origin/main
+            fi
 
-            # Stop and remove the old container (if running)
+            cd /home/ubuntu/ci-cd-project
+
+            echo "🐳 Building Docker image locally on EC2..."
+            docker build -t bug-tracker:latest .
+
+            echo "🛑 Stopping old container if running..."
             docker stop bug-tracker || true
             docker rm bug-tracker || true
 
-            # Run the new container
+            echo "🚀 Launching new container with persistent database mount..."
+            mkdir -p /home/ubuntu/bugtracker_db
             docker run -d \
               --name bug-tracker \
               --restart always \
               -p 5000:5000 \
-              ${{ secrets.IXICKER_USERNAME }}/bug-tracker:latest
+              -v /home/ubuntu/bugtracker_db:/app/instance \
+              bug-tracker:latest
 
-            echo "✅ Docker deployment successful!"
+            echo "✅ Deployment successful!"
