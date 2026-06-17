@@ -23,7 +23,7 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
+          username: ${{ secrets.IXICKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       # ─────────────────────────────────────────────
@@ -34,7 +34,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/bug-tracker:latest
+          tags: ${{ secrets.IXICKER_USERNAME }}/bug-tracker:latest
 
       # ─────────────────────────────────────────────
       # Step 4: SSH into EC2 and run the container
@@ -47,7 +47,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             # Pull the latest Docker image from Docker Hub
-            docker pull ${{ secrets.DOCKER_USERNAME }}/bug-tracker:latest
+            docker pull ${{ secrets.IXICKER_USERNAME }}/bug-tracker:latest
 
             # Stop and remove the old container (if running)
             docker stop bug-tracker || true
@@ -58,6 +58,6 @@ jobs:
               --name bug-tracker \
               --restart always \
               -p 5000:5000 \
-              ${{ secrets.DOCKER_USERNAME }}/bug-tracker:latest
+              ${{ secrets.IXICKER_USERNAME }}/bug-tracker:latest
 
             echo "✅ Docker deployment successful!"
