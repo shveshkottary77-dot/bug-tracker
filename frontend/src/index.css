@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root { height: 100%; }
+
+/* subtle animated metric */
+.metric-animate { transform: translateY(0); transition: transform .35s ease, box-shadow .2s ease; }
+.metric-animate:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(2,6,23,0.6); }
+
+/* Monaco line highlight */
+.lineHighlight {
+	background: linear-gradient(90deg, rgba(99,102,241,0.12), rgba(99,102,241,0.06));
+	border-left: 3px solid rgba(99,102,241,0.9);
+}
+
+/* Focus outlines and accessible styles */
+button:focus, a:focus { outline: 3px solid rgba(99,102,241,0.25); outline-offset: 2px; }
+
+/* Smooth transitions for buttons and cards */
+button, .rounded { transition: transform .12s ease, box-shadow .12s ease; }
+button:hover { transform: translateY(-2px); }
+

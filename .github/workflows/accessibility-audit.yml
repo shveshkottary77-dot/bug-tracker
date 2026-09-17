@@ -1,0 +1,59 @@
+name: Accessibility Audit
+
+on:
+  pull_request:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  axe-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install frontend deps
+        run: |
+          cd frontend
+          npm ci
+          npx playwright install --with-deps
+
+      - name: Build and preview frontend
+        run: |
+          cd frontend
+          npm run build
+          npx vite preview --port 5177 &>/dev/null & echo $! > /tmp/preview.pid
+          n=0; until curl -sSf http://localhost:5177 >/dev/null || [ $n -gt 30 ]; do n=$((n+1)); sleep 1; done
+
+      - name: Run axe accessibility audit
+        run: |
+          cd frontend
+          node scripts/axe-audit.js http://localhost:5177
+
+      - name: Upload axe report
+        uses: actions/upload-artifact@v4
+        with:
+          name: axe-report
+          path: frontend/axe-report.json
+
+      - name: Stop preview server
+        if: always()
+        run: |
+          if [ -f /tmp/preview.pid ]; then kill $(cat /tmp/preview.pid) || true; fi
+      - name: Comment on PR with run link
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
+            const body = `Accessibility audit completed. See run details: ${runUrl}\nArtifacts (axe report) are available from the workflow run page under Artifacts.`
+            const pr = context.payload.pull_request
+            if(pr){
+              github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: pr.number, body })
+            }
